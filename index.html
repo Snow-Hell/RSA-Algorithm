@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSA Algorithm</title>
+  <style>
+    :root {
+      --background-color: #000;
+      --text-color: #fff;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    header {
+      text-align: center;
+      padding: 40px 20px 20px;
+      color: white;
+      font-size: 2.5em;
+      text-shadow: 0 0 15px rgba(255,255,255,0.5);
+    }
+
+    main {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-around;
+      padding: 20px;
+      gap: 20px;
+    }
+
+    .box-container {
+      background: rgba(0, 0, 0);
+      box-shadow: 0 0 50px rgba(255, 255, 255);
+      border: 3px solid white;
+      border-radius: 30px;
+      padding: 30px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    section {
+      padding: 20px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      box-shadow: 0 0 25px rgb(251, 253, 251);
+      border: 2px solid rgb(119, 2, 2);
+    }
+
+    button {
+      padding: 12px 20px;
+      margin-top: 10px;
+      margin-bottom: 10px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(45deg, #ff0080, #7928ca, #00ffff, #00ff00);
+      background-size: 600% 600%;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+      box-shadow: 0 8px 20px rgba(255, 255, 255, 0.3);
+      animation: buttonGlow 5s ease infinite;
+    }
+
+    @keyframes buttonGlow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(255, 255, 255, 0.5);
+    }
+
+    textarea, input {
+      width: calc(100% - 20px);
+      padding: 12px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 10px;
+      background-color: #1a1a1a;
+      color: white;
+      animation: pulseInput 2s infinite ease-in-out;
+      box-shadow: 0 0 10px rgba(255,255,255,0.1);
+    }
+
+    #startInput, #endInput {
+      max-width: 140px;
+      display: inline-block;
+      margin-right: 10px;
+    }
+
+    @keyframes pulseInput {
+      0% { box-shadow: 0 0 5px rgba(255, 255, 255, 0.1); }
+      50% { box-shadow: 0 0 20px rgba(255, 255, 255, 0.3); }
+      100% { box-shadow: 0 0 5px rgba(255, 255, 255, 0.1); }
+    }
+
+    h2 {
+      color: white;
+      border-bottom: 2px solid white;
+      padding-bottom: 5px;
+    }
+
+    .output {
+      background-color: rgba(255, 255, 255, 0.05);
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      border: 1px solid white;
+      box-shadow: 0 0 10px rgba(255,255,255,0.2);
+      max-height: 150px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <header>RSA Algorithm</header>
+  <main>
+    <div class="box-container">
+      <section id="receiver">
+        <h2>Receiver Side</h2>
+        <div>
+          <input type="number" id="startInput", placeholder="Start(range p , q)">
+          <input type="number" id="endInput", placeholder="End(range p , q)">
+        </div>
+        <button onclick="generateKeys()">Generate Keys</button>
+        <p><strong>Public Key:</strong> <span id="publicKeyDisplay"></span></p>
+        <p><strong>Private Key:</strong> <span id="privateKeyDisplay"></span></p>
+        <button onclick="sendPublicKey()">Send Public Key to Sender</button>
+        <p><strong>Received Message:</strong></p>
+        <div id="receivedCiphertext" class="output"></div>
+        <button onclick="decryptMessage()">Decrypt Message</button>
+        <p><strong>Decrypted Message:</strong></p>
+        <div id="decryptedMessage" class="output"></div>
+      </section>
+    </div>
+
+    <div class="box-container">
+      <section id="sender">
+        <h2>Sender Side</h2>
+        <div style="padding-right: 10px;">
+          <textarea id="messageToEncrypt" placeholder="Type your message here..."></textarea>
+        </div>
+        <button onclick="encryptMessage()">Create Ciphertext</button>
+        <p><strong>Ciphertext:</strong></p>
+        <div id="cipherText" class="output"></div>
+        <button onclick="sendMessage()">Send to Receiver</button>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    let publicKey, privateKey;
+    let senderReceivedPublicKey;
+    let sentCiphertext = [];
+
+    function isPrime(num) {
+      if (num <= 1) return false;
+      for (let i = 2; i <= Math.sqrt(num); i++) {
+        if (num % i === 0) return false;
+      }
+      return true;
+    }
+
+    function generatePrimeInRange(start, end) {
+      let prime;
+      while (true) {
+        let candidate = Math.floor(Math.random() * (end - start + 1)) + start;
+        if (isPrime(candidate)) {
+          prime = candidate;
+          break;
+        }
+      }
+      return prime;
+    }
+
+    function gcd(a, b) {
+      while (b != 0) {
+        let temp = b;
+        b = a % b;
+        a = temp;
+      }
+      return a;
+    }
+
+    function enc(phi) {
+      for (let i = 2; i < phi; i++) {
+        if (gcd(i, phi) === 1) return i;
+      }
+    }
+
+    function dec(e, phi) {
+      for (let i = 2; i < phi; i++) {
+        if ((i * e) % phi === 1) return i;
+      }
+    }
+
+    function generateKeys() {
+      let start = parseInt(document.getElementById("startInput").value);
+      let end = parseInt(document.getElementById("endInput").value);
+
+      if (isNaN(start) || isNaN(end) || start >= end) {
+        alert("Please enter a valid range (start < end).")
+        return;
+      }
+
+      let p = generatePrimeInRange(start, end);
+      let q;
+      do {
+        q = generatePrimeInRange(start, end);
+      } while (q === p);
+
+      let n = p * q;
+      let phi = (p - 1) * (q - 1);
+      let e = enc(phi);
+      let d = dec(e, phi);
+      publicKey = [e, n];
+      privateKey = [d, n];
+
+      document.getElementById("publicKeyDisplay").textContent = `(${e}, ${n})`;
+      document.getElementById("privateKeyDisplay").textContent = `(${d}, ${n})`;
+    }
+
+    function sendPublicKey() {
+      if (!publicKey) {
+        alert("Generate the keys first.");
+        return;
+      }
+      senderReceivedPublicKey = publicKey;
+      alert("Public key sent to sender.");
+    }
+
+    function encryptMessage() {
+      const message = document.getElementById("messageToEncrypt").value;
+      if (!senderReceivedPublicKey) {
+        alert("Public key not received yet!");
+        return;
+      }
+      let cipherArr = [];
+      for (let ch of message) {
+        let code = ch.charCodeAt(0);
+        let encrypted = BigInt(code) ** BigInt(senderReceivedPublicKey[0]) % BigInt(senderReceivedPublicKey[1]);
+        cipherArr.push(encrypted.toString());
+      }
+      sentCiphertext = cipherArr;
+      document.getElementById("cipherText").textContent = cipherArr.join(" ");
+    }
+
+    function sendMessage() {
+      document.getElementById("receivedCiphertext").textContent = sentCiphertext.join(" ");
+    }
+
+    function decryptMessage() {
+      const ciphertextStr = document.getElementById("receivedCiphertext").textContent;
+      if (!privateKey || !ciphertextStr) return;
+
+      let cipherArr = ciphertextStr.trim().split(" ").map(s => BigInt(s));
+
+      let message = cipherArr.map(encVal => {
+        let decrypted = encVal ** BigInt(privateKey[0]) % BigInt(privateKey[1]);
+        return String.fromCharCode(Number(decrypted));
+      }).join("");
+
+      document.getElementById("decryptedMessage").textContent = message;
+    }
+  </script>
+</body>
+</html>
